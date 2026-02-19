@@ -27,7 +27,7 @@ routerModel-skill/
 
 ```bash
 cd "H:\tzj\pro2026\插件规划\2月\19\routerModel-skill\scripts"
-python model_manager.py add --provider nvidia --api-key "nvapi-your-key" --model-name "nvidia/nemotron-3-nano-30b-a3b"
+python model_manager.py add --provider nvidia --api-key "nvapi-your-key" --model-name "nvidia/nemotron-3-nano-30b-a3b" --base-url "https://integrate.api.nvidia.com/v1"
 ```
 
 输出：
@@ -36,6 +36,7 @@ python model_manager.py add --provider nvidia --api-key "nvapi-your-key" --model
   ID: nvidia-001
   提供商: nvidia
   模型名称: nvidia/nemotron-3-nano-30b-a3b
+  Base URL: https://integrate.api.nvidia.com/v1
 ```
 
 ### 2. 查看所有模型
@@ -89,7 +90,7 @@ python model_manager.py delete --id nvidia-001
 
 ```bash
 # 添加模型
-python model_manager.py add --provider <提供商> --api-key <密钥> --model-name <模型名>
+python model_manager.py add --provider <提供商> --api-key <密钥> --model-name <模型名> [--base-url <端点>]
 
 # 列出所有模型
 python model_manager.py list
@@ -101,7 +102,7 @@ python model_manager.py list --provider <提供商>
 python model_manager.py search --provider <提供商>
 
 # 更新模型
-python model_manager.py update --id <模型ID> [--api-key <新密钥>] [--model-name <新模型名>]
+python model_manager.py update --id <模型ID> [--api-key <新密钥>] [--model-name <新模型名>] [--base-url <新端点>]
 
 # 删除模型
 python model_manager.py delete --id <模型ID>
@@ -138,6 +139,7 @@ python model_apply.py --id <模型ID> --dry-run
       "id": "nvidia-001",
       "provider": "nvidia",
       "api_key": "nvapi-xxx",
+      "base_url": "https://integrate.api.nvidia.com/v1",
       "model_name": "nvidia/nemotron-3-nano-30b-a3b",
       "created_at": "2026-02-19T12:00:00Z",
       "last_used": "2026-02-19T12:30:00Z"
@@ -151,6 +153,7 @@ python model_apply.py --id <模型ID> --dry-run
 - `id`: 模型唯一标识（自动生成，格式：`{provider}-{序号}`）
 - `provider`: 提供商名称
 - `api_key`: API 密钥
+- `base_url`: 自定义API端点（可选）
 - `model_name`: 模型完整名称
 - `created_at`: 创建时间（ISO 8601 格式）
 - `last_used`: 最后使用时间（如果未使用则为 null）
@@ -160,7 +163,7 @@ python model_apply.py --id <模型ID> --dry-run
 ### NVIDIA
 
 ```bash
-python model_manager.py add --provider nvidia --api-key "nvapi-xxx" --model-name "nvidia/nemotron-3-nano-30b-a3b"
+python model_manager.py add --provider nvidia --api-key "nvapi-xxx" --model-name "nvidia/nemotron-3-nano-30b-a3b" --base-url "https://integrate.api.nvidia.com/v1"
 ```
 
 ### OpenAI

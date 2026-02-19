@@ -107,6 +107,8 @@ class ModelApplier:
         print(f"  提供商: {model['provider']}")
         print(f"  模型名称: {model['model_name']}")
         print(f"  API密钥: {model['api_key'][:8]}...")
+        if "base_url" in model:
+            print(f"  Base URL: {model['base_url']}")
 
         if dry_run:
             print("\n[DRY RUN] 不会实际应用模型")
@@ -114,13 +116,17 @@ class ModelApplier:
 
         # 生成配置补丁
         # 注意：这里需要根据 OpenClaw 的实际 API 结构来调整
-        # 假设可以通过 environment 变量设置 API key
+        # 假设可以通过 environment 变量设置 API key 和 base url
         config_patch = {
             "environment": {
                 "OPENAI_API_KEY": model["api_key"]
             },
             "model": model["model_name"]
         }
+
+        # 如果有自定义base_url，添加到环境变量
+        if "base_url" in model:
+            config_patch["environment"]["OPENAI_BASE_URL"] = model["base_url"]
 
         # 输出配置用于说明如何应用
         print("\n配置补丁（需要通过 OpenClaw API 应用）：")

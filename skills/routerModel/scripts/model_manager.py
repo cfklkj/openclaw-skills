@@ -55,7 +55,7 @@ class ModelManager:
         count = sum(1 for m in config["models"] if m["provider"] == provider)
         return f"{provider.lower()}-{count + 1:03d}"
 
-    def add(self, provider, api_key, model_name):
+    def add(self, provider, api_key, model_name, base_url=None):
         """添加新模型"""
         config = self._read_config()
 
@@ -68,6 +68,9 @@ class ModelManager:
             "last_used": None
         }
 
+        if base_url:
+            model["base_url"] = base_url
+
         config["models"].append(model)
         self._write_config(config)
 
@@ -75,6 +78,8 @@ class ModelManager:
         print(f"  ID: {model['id']}")
         print(f"  提供商: {model['provider']}")
         print(f"  模型名称: {model['model_name']}")
+        if base_url:
+            print(f"  Base URL: {model['base_url']}")
 
         return model
 
@@ -101,6 +106,8 @@ class ModelManager:
         for model in models:
             created = model["created_at"][:19].replace('T', ' ')
             print(f"{model['id']:<15} {model['provider']:<12} {model['model_name']:<40} {created:<20}")
+            if "base_url" in model:
+                print(f"{'':15} {'Base URL':<12} {model['base_url']}")
 
         print(f"\n总计: {len(models)} 个模型")
 
@@ -126,7 +133,7 @@ class ModelManager:
 
         return None
 
-    def update(self, model_id, api_key=None, model_name=None):
+    def update(self, model_id, api_key=None, model_name=None, base_url=None):
         """更新模型"""
         config = self._read_config()
 
@@ -136,6 +143,8 @@ class ModelManager:
                     model["api_key"] = api_key
                 if model_name:
                     model["model_name"] = model_name
+                if base_url:
+                    model["base_url"] = base_url
 
                 self._write_config(config)
 
@@ -144,6 +153,8 @@ class ModelManager:
                     print(f"  API密钥已更新")
                 if model_name:
                     print(f"  模型名称: {model['model_name']}")
+                if base_url:
+                    print(f"  Base URL: {model['base_url']}")
 
                 return model
 
@@ -185,6 +196,7 @@ def main():
     add_parser.add_argument("--provider", required=True, help="提供商名称（如 nvidia, openai）")
     add_parser.add_argument("--api-key", required=True, help="API密钥")
     add_parser.add_argument("--model-name", required=True, help="模型名称")
+    add_parser.add_argument("--base-url", help="自定义API端点（如 https://api.example.com/v1）")
 
     # 列出模型
     list_parser = subparsers.add_parser("list", help="列出所有模型")
@@ -199,6 +211,7 @@ def main():
     update_parser.add_argument("--id", required=True, dest="model_id", help="模型ID")
     update_parser.add_argument("--api-key", help="新的API密钥")
     update_parser.add_argument("--model-name", help="新的模型名称")
+    update_parser.add_argument("--base-url", help="新的API端点")
 
     # 删除模型
     delete_parser = subparsers.add_parser("delete", help="删除模型")
@@ -213,7 +226,7 @@ def main():
     manager = ModelManager()
 
     if args.command == "add":
-        manager.add(args.provider, args.api_key, args.model_name)
+        manager.add(args.provider, args.api_key, args.model_name, args.base_url)
 
     elif args.command == "list":
         manager.list(provider=args.provider)
@@ -222,7 +235,7 @@ def main():
         manager.search(args.provider)
 
     elif args.command == "update":
-        manager.update(args.model_id, args.api_key, args.model_name)
+        manager.update(args.model_id, args.api_key, args.model_name, args.base_url)
 
     elif args.command == "delete":
         manager.delete(args.model_id)

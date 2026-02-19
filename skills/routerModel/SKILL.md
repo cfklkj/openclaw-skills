@@ -1,13 +1,13 @@
 ---
 name: routerModel
-description: 自定义模型管理技能，提供模型的增删查改和应用功能。用于管理多个AI模型提供商（如NVIDIA、OpenAI、Anthropic等）的API密钥和模型配置，并支持将模型应用到当前会话。触发场景：添加新模型、列出模型、删除模型、更新模型配置、切换会话使用的模型。
+description: 自定义模型管理技能，提供模型的增删查改和应用功能。用于管理多个AI模型提供商（如NVIDIA、OpenAI、Anthropic等）的API密钥、自定义端点（base_url）和模型配置，并支持将模型应用到当前会话。触发场景：添加新模型、列出模型、删除模型、更新模型配置、切换会话使用的模型。
 ---
 
 # Router Model - 自定义模型管理
 
 ## 快速开始
 
-管理自定义模型配置，支持多个提供商的API密钥和模型名称管理。
+管理自定义模型配置，支持多个提供商的API密钥、自定义API端点（base_url）和模型名称管理。
 
 ## 核心文件
 
@@ -22,18 +22,19 @@ description: 自定义模型管理技能，提供模型的增删查改和应用�
 使用 `model_manager.py add` 命令添加新模型：
 
 ```bash
-python scripts/model_manager.py add --provider <provider> --api-key <key> --model-name <name>
+python scripts/model_manager.py add --provider <provider> --api-key <key> --model-name <name> [--base-url <url>]
 ```
 
 示例：
 ```bash
-python scripts/model_manager.py add --provider nvidia --api-key "nvapi-xxx" --model-name "nvidia/nemotron-3-nano-30b-a3b"
+python scripts/model_manager.py add --provider nvidia --api-key "nvapi-xxx" --model-name "nvidia/nemotron-3-nano-30b-a3b" --base-url "https://integrate.api.nvidia.com/v1"
 ```
 
 参数：
 - `--provider`: 提供商名称（如 nvidia, openai, anthropic）
 - `--api-key`: API密钥
 - `--model-name`: 模型完整名称（支持路径格式，如 `provider/model-name`）
+- `--base-url`: 自定义API端点（可选，如 `https://api.example.com/v1`）
 
 ### 2. 列出模型
 
@@ -63,12 +64,12 @@ python scripts/model_manager.py search --provider nvidia
 使用 `model_manager.py update` 更新已存在的模型：
 
 ```bash
-python scripts/model_manager.py update --id <model-id> [--api-key <new-key>] [--model-name <new-name>]
+python scripts/model_manager.py update --id <model-id> [--api-key <new-key>] [--model-name <new-name>] [--base-url <new-url>]
 ```
 
 示例：
 ```bash
-python scripts/model_manager.py update --id nvidia-001 --api-key "nvapi-new-key"
+python scripts/model_manager.py update --id nvidia-001 --api-key "nvapi-new-key" --base-url "https://new-endpoint.com/v1"
 ```
 
 ### 5. 删除模型
@@ -114,6 +115,7 @@ python scripts/model_apply.py --model-name "nvidia/nemotron"
       "id": "nvidia-001",
       "provider": "nvidia",
       "api_key": "nvapi-xxx",
+      "base_url": "https://integrate.api.nvidia.com/v1",
       "model_name": "nvidia/nemotron-3-nano-30b-a3b",
       "created_at": "2026-02-19T12:00:00Z",
       "last_used": "2026-02-19T12:30:00Z"
