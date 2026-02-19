@@ -283,6 +283,60 @@ class ModelManager:
         print(f"✓ 提供商 '{provider}' 已删除")
         return True
 
+    def select_models(self, provider=None):
+        """交互式选择模型（生成 inline buttons）"""
+        config = self._read_config()
+
+        providers = config.get("models", {}).get("providers", {})
+        if not providers:
+            print("暂无已配置的模型")
+            return
+
+        # 收集所有模型
+        models_list = []
+        for provider_name, provider_config in providers.items():
+            if provider and provider_name.lower() != provider.lower():
+                continue
+            for model in provider_config.get("models", []):
+                model_id = model.get("id", "N/A")
+                full_path = f"{provider_name}/{model_id}"
+                models_list.append((provider_name, model_id, full_path))
+
+        if not models_list:
+            print("暂无可选择的模型")
+            return
+
+        # 显示标题
+        print("\\n**选择要应用的模型：**\\n")
+
+        # 获取当前模型
+        try:
+            import json
+            with open(self.config_file, 'r', encoding='utf-8') as f:
+                current_config = json.load(f)
+            current_model = current_config.get("agents", {}).get("defaults", {}).get("model", {}).get("primary", "未设置")
+            print(f"当前模型: {current_model}\\n")
+        except:
+            pass
+
+        # 生成 inline buttons
+        buttons = []
+        for prov_name, model_id, full_path in models_list:
+            # 缩短模型名称显示
+            display_name = model_id.split("/")[-1] if "/" in model_id else model_id
+            if len(display_name) > 20:
+                display_name = display_name[:18] + ".."
+            button_text = f"{prov_name}: {display_name}"
+
+            # callback_data 是切换模型的命令
+            callback_data = f"model apply {full_path}"
+
+            buttons.append([{"text": button_text, "callback_data": callback_data}])
+
+        # 以 JSON 格式输出 buttons（供 OpenClaw 解析）
+        import json
+        print(f"[[[BUTTONS]]]{json.dumps(buttons, ensure_ascii=False)}[[[/BUTTONS]]]")
+
 
 def main():
     parser = argparse.ArgumentParser(description="OpenClaw 模型管理工具")
@@ -294,6 +348,10 @@ def main():
     # 列出模型
     list_models_parser = subparsers.add_parser("list-models", help="列出所有模型")
     list_models_parser.add_argument("--provider", help="按提供商过滤")
+
+    # 交互式选择模型（带按钮）
+    select_parser = subparsers.add_parser("select", help="交互式选择模型（带按钮）")
+    select_parser.add_argument("--provider", help="按提供商过滤")
 
     # 添加提供商
     add_provider_parser = subparsers.add_parser("add-provider", help="添加提供商")
@@ -340,6 +398,9 @@ def main():
 
     elif args.command == "list-models":
         manager.list_models(provider=args.provider)
+
+    elif args.command == "select":
+        manager.select_models(provider=args.provider)
 
     elif args.command == "add-provider":
         manager.add_provider(args.name, args.api_key, args.base_url, args.api_type)

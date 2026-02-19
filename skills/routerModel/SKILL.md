@@ -1,7 +1,7 @@
 ---
 name: routerModel
 description: 自定义模型管理技能，提供模型的增删查改和应用功能。直接管理 ~/.openclaw/openclaw.json 的 models 配置，支持添加提供商、模型管理以及切换默认模型。触发场景：添加新提供商/模型、列出模型、删除模型、更新提供商配置、切换默认模型。
-version: 1.0.1
+version: 1.1.0
 ---
 
 # Router Model - OpenClaw 模型管理
@@ -92,7 +92,26 @@ python scripts/model_manager.py list-models
 python scripts/model_manager.py list-models --provider nvidia
 ```
 
-### 5. 更新提供商配置
+### 5. 交互式选择模型（推荐）
+
+列出所有模型并提供可点击按钮，直接应用到当前会话：
+
+```bash
+python scripts/model_manager.py select
+```
+
+按提供商过滤：
+```bash
+python scripts/model_manager.py select --provider nvidia
+```
+
+**特点：**
+- 显示当前使用的模型
+- 为每个模型提供按钮，点击即可切换
+- 支持 Telegram/WhatsApp 等平台的 inline buttons
+- 切换后立即生效，无需重启
+
+### 6. 更新提供商配置
 
 ```bash
 python scripts/model_manager.py update-provider --name <provider> [--api-key <new-key>] [--base-url <new-url>]
@@ -103,7 +122,7 @@ python scripts/model_manager.py update-provider --name <provider> [--api-key <ne
 python scripts/model_manager.py update-provider --name nvidia --api-key "nvapi-new-key"
 ```
 
-### 6. 删除模型
+### 7. 删除模型
 
 ```bash
 python scripts/model_manager.py delete-model --provider <provider> --id <model_id>
@@ -114,7 +133,7 @@ python scripts/model_manager.py delete-model --provider <provider> --id <model_i
 python scripts/model_manager.py delete-model --provider nvidia --id "nvidia/nemotron-3-nano-30b-a3b"
 ```
 
-### 7. 删除提供商及其所有模型
+### 8. 删除提供商及其所有模型
 
 ```bash
 python scripts/model_manager.py delete-provider --name <provider>
@@ -125,7 +144,7 @@ python scripts/model_manager.py delete-provider --name <provider>
 python scripts/model_manager.py delete-provider --name nvidia
 ```
 
-### 8. 应用模型为默认
+### 9. 应用模型为默认
 
 使用 `model_apply.py` 切换默认模型：
 
@@ -144,7 +163,7 @@ python scripts/model_apply.py apply "nvidia/nemotron-3-nano-30b-a3b"
 python scripts/model_apply.py apply "nemotron"
 ```
 
-### 9. 查看当前配置
+### 10. 查看当前配置
 
 查看当前默认模型：
 ```bash
