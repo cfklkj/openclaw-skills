@@ -284,12 +284,12 @@ class ModelManager:
         return True
 
     def select_models(self, provider=None):
-        """交互式选择模型（生成 inline buttons）"""
+        """交互式选择模型（返回 JSON 格式供 agent 发送按钮）"""
         config = self._read_config()
 
         providers = config.get("models", {}).get("providers", {})
         if not providers:
-            print("暂无已配置的模型")
+            print(json.dumps({"error": "暂无已配置的模型"}, ensure_ascii=False))
             return
 
         # 收集所有模型
@@ -303,19 +303,15 @@ class ModelManager:
                 models_list.append((provider_name, model_id, full_path))
 
         if not models_list:
-            print("暂无可选择的模型")
+            print(json.dumps({"error": "暂无可选择的模型"}, ensure_ascii=False))
             return
 
-        # 显示标题
-        print("\\n**选择要应用的模型：**\\n")
-
         # 获取当前模型
+        current_model = "未设置"
         try:
-            import json
             with open(self.config_file, 'r', encoding='utf-8') as f:
                 current_config = json.load(f)
             current_model = current_config.get("agents", {}).get("defaults", {}).get("model", {}).get("primary", "未设置")
-            print(f"当前模型: {current_model}\\n")
         except:
             pass
 
@@ -333,9 +329,13 @@ class ModelManager:
 
             buttons.append([{"text": button_text, "callback_data": callback_data}])
 
-        # 以 JSON 格式输出 buttons（供 OpenClaw 解析）
-        import json
-        print(f"[[[BUTTONS]]]{json.dumps(buttons, ensure_ascii=False)}[[[/BUTTONS]]]")
+        # 输出 JSON 格式（供 agent 解析）
+        result = {
+            "current_model": current_model,
+            "buttons": buttons,
+            "total": len(models_list)
+        }
+        print(json.dumps(result, ensure_ascii=False, indent=None))
 
 
 def main():
