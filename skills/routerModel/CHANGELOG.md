@@ -1,5 +1,17 @@
 # 更新日志
 
+## [1.2.0] - 2026-02-19
+
+### 新增
+- 添加 agents.defaults.models 管理功能
+- list-agent-models: 列出 agent 可用的模型列表
+- add-agent-model: 添加指定模型到 agent.models
+- remove-agent-model: 从 agent.models 删除指定模型
+- sync-agent-models: 同步所有可用模型到 agent.models
+- 支持对 OpenClaw agent 模型列表的增删改操作
+
+---
+
 ## [1.1.1] - 2026-02-19
 
 ### 修复

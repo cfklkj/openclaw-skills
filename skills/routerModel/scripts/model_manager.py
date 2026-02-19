@@ -337,6 +337,167 @@ class ModelManager:
         }
         print(json.dumps(result, ensure_ascii=False, indent=None))
 
+    # ========== Agent Models Management ==========
+
+    def _find_model(self, model_spec):
+        """
+        查找模型（支持多种格式）：
+        - {model_id} 如 "z-ai/glm4.7"
+        - {provider}/{model_id} 如 "nvidia/z-ai/glm4.7"
+        """
+        config = self._read_config()
+
+        providers = config.get("models", {}).get("providers", {})
+        if not providers:
+            return None, None
+
+        # 尝试直接匹配 {provider}/{model_id} 格式
+        if "/" in model_spec:
+            parts = model_spec.split("/", 1)
+            if len(parts) == 2:
+                provider_candidate, model_id = parts
+                for prov_name, prov_config in providers.items():
+                    if prov_name == provider_candidate:
+                        for model in prov_config.get("models", []):
+                            if model.get("id") == model_id:
+                                return prov_name, model
+
+        # 尝试模糊匹配模型ID
+        for provider_name, provider_config in providers.items():
+            for model in provider_config.get("models", []):
+                if model_spec.lower() in model.get("id", "").lower():
+                    return provider_name, model
+
+        return None, None
+
+    def _ensure_agents_defaults_models(self, config):
+        """确保 agents.defaults.models 结构存在"""
+        if "agents" not in config:
+            config["agents"] = {}
+        if "defaults" not in config["agents"]:
+            config["agents"]["defaults"] = {}
+        if "model" not in config["agents"]["defaults"]:
+            config["agents"]["defaults"]["model"] = {}
+        if "models" not in config["agents"]["defaults"]:
+            config["agents"]["defaults"]["models"] = {}
+        return config
+
+    def list_agent_models(self):
+        """列出 agents.defaults.models 中的所有模型"""
+        config = self._read_config()
+
+        agent_models = config.get("agents", {}).get("defaults", {}).get("models", {})
+
+        if not agent_models:
+            print("暂无配置的 agent 模型")
+            return
+
+        print(f"\n{'模型ID':<60}")
+        print("-" * 60)
+
+        for model_id in agent_models.keys():
+            print(f"{model_id:<60}")
+
+        print(f"\n总计: {len(agent_models)} 个 agent 模型")
+
+    def add_agent_model(self, model_spec):
+        """添加模型到 agents.defaults.models"""
+        # 查找模型
+        provider_name, model = self._find_model(model_spec)
+
+        if not model:
+            print(f"未找到匹配 '{model_spec}' 的模型")
+            print("\n可用模型：")
+            self.list_models()
+            return False
+
+        model_id = model.get("id")
+        full_path = f"{provider_name}/{model_id}"
+
+        config = self._read_config()
+
+        # 确保结构存在
+        config = self._ensure_agents_defaults_models(config)
+
+        # 检查是否已存在
+        agent_models = config["agents"]["defaults"]["models"]
+        if full_path in agent_models:
+            print(f"模型 '{full_path}' 已在 agent 模型列表中")
+            return True
+
+        # 添加模型
+        agent_models[full_path] = {}
+
+        # 写入配置
+        self._write_config(config)
+
+        print(f"已添加模型: {full_path}")
+        return True
+
+    def remove_agent_model(self, model_spec):
+        """从 agents.defaults.models 删除模型"""
+        # 查找模型
+        provider_name, model = self._find_model(model_spec)
+
+        if not model:
+            print(f"未找到匹配 '{model_spec}' 的模型")
+            return False
+
+        model_id = model.get("id")
+        full_path = f"{provider_name}/{model_id}"
+
+        config = self._read_config()
+
+        # 确保结构存在
+        config = self._ensure_agents_defaults_models(config)
+        agent_models = config["agents"]["defaults"]["models"]
+
+        # 检查是否存在
+        if full_path not in agent_models:
+            print(f"模型 '{full_path}' 不在 agent 模型列表中")
+            return False
+
+        # 删除模型
+        del agent_models[full_path]
+
+        # 写入配置
+        self._write_config(config)
+
+        print(f"已删除模型: {full_path}")
+        return True
+
+    def sync_agent_models(self):
+        """同步所有可用模型到 agents.defaults.models"""
+        config = self._read_config()
+
+        providers = config.get("models", {}).get("providers", {})
+        if not providers:
+            print("暂无已配置的模型")
+            return False
+
+        # 收集所有模型
+        all_models = []
+        for provider_name, provider_config in providers.items():
+            for model in provider_config.get("models", []):
+                model_id = model.get("id", "N/A")
+                full_path = f"{provider_name}/{model_id}"
+                all_models.append(full_path)
+
+        # 确保结构存在
+        config = self._ensure_agents_defaults_models(config)
+
+        # 同步模型
+        agent_models = config["agents"]["defaults"]["models"]
+        for full_path in all_models:
+            if full_path not in agent_models:
+                agent_models[full_path] = {}
+
+        # 写入配置
+        self._write_config(config)
+
+        print(f"已同步 {len(all_models)} 个模型到 agent.models")
+        return True
+
 
 def main():
     parser = argparse.ArgumentParser(description="OpenClaw 模型管理工具")
@@ -390,6 +551,21 @@ def main():
     delete_provider_parser = subparsers.add_parser("delete-provider", help="删除提供商")
     delete_provider_parser.add_argument("--name", required=True, help="提供商名称")
 
+    # Agent Models 管理
+    # 列出 agent 模型
+    list_agent_models_parser = subparsers.add_parser("list-agent-models", help="列出 agents.defaults.models 中的模型")
+
+    # 添加 agent 模型
+    add_agent_model_parser = subparsers.add_parser("add-agent-model", help="添加模型到 agents.defaults.models")
+    add_agent_model_parser.add_argument("model", help="模型ID或{provider}/{model_id}")
+
+    # 删除 agent 模型
+    remove_agent_model_parser = subparsers.add_parser("remove-agent-model", help="从 agents.defaults.models 删除模型")
+    remove_agent_model_parser.add_argument("model", help="模型ID或{provider}/{model_id}")
+
+    # 同步 agent 模型
+    sync_agent_models_parser = subparsers.add_parser("sync-agent-models", help="同步所有可用模型到 agents.defaults.models")
+
     args = parser.parse_args()
     manager = ModelManager()
 
@@ -425,6 +601,18 @@ def main():
 
     elif args.command == "delete-provider":
         manager.delete_provider(args.name)
+
+    elif args.command == "list-agent-models":
+        manager.list_agent_models()
+
+    elif args.command == "add-agent-model":
+        manager.add_agent_model(args.model)
+
+    elif args.command == "remove-agent-model":
+        manager.remove_agent_model(args.model)
+
+    elif args.command == "sync-agent-models":
+        manager.sync_agent_models()
 
 
 if __name__ == "__main__":

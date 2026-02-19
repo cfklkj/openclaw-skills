@@ -1,7 +1,7 @@
 ---
 name: routerModel
 description: 自定义模型管理技能，提供模型的增删查改和应用功能。直接管理 ~/.openclaw/openclaw.json 的 models 配置，支持添加提供商、模型管理以及切换默认模型。触发场景：添加新提供商/模型、列出模型、删除模型、更新提供商配置、切换默认模型。
-version: 1.1.1
+version: 1.2.0
 ---
 
 # Router Model - OpenClaw 模型管理
@@ -174,6 +174,37 @@ python scripts/model_apply.py current
 ```bash
 python scripts/model_apply.py session
 ```
+
+### 11. 管理 Agent 模型列表
+
+管理 `openclaw.json` 中的 `agents.defaults.models` 字段。
+
+**列出 agent 模型：**
+```bash
+python scripts/model_manager.py list-agent-models
+```
+
+**添加模型到 agent：**
+```bash
+python scripts/model_manager.py add-agent-model <model_spec>
+```
+
+示例：
+```bash
+python scripts/model_manager.py add-agent-model "openrouter/z-ai/glm4.7"
+```
+
+**从 agent 删除模型：**
+```bash
+python scripts/model_manager.py remove-agent-model <model_spec>
+```
+
+**同步所有可用模型到 agent：**
+```bash
+python scripts/model_manager.py sync-agent-models
+```
+
+这将把所有已添加的提供商模型一次性同步到 `agents.defaults.models`。
 
 列出可用模型：
 ```bash
