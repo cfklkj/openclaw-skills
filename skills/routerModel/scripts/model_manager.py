@@ -43,6 +43,11 @@ class ModelManager:
         with open(self.config_file, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
 
+    def _restart_reminder(self):
+        """提示用户可能需要重启 OpenClaw"""
+        print("\n注意：修改已生效，但部分功能可能需要重启 OpenClaw 才能完全生效")
+        print("重启命令: openclaw gateway restart")
+
     def _ensure_models_structure(self, config):
         """确保 models 结构存在"""
         if "models" not in config:
@@ -182,6 +187,8 @@ class ModelManager:
             print(f"  Base URL: {base_url}")
         print(f"  API类型: {api_type}")
 
+        self._restart_reminder()
+
         return True
 
     def add_model(self, provider, model_id, **kwargs):
@@ -209,6 +216,8 @@ class ModelManager:
         print(f"✓ 模型添加成功")
         print(f"  提供商: {provider}")
         print(f"  模型ID: {model_id}")
+
+        self._restart_reminder()
 
         return True
 
@@ -243,6 +252,9 @@ class ModelManager:
 
         self._write_config(config)
         print(f"✓ 提供商 '{provider}' 更新成功")
+
+        self._restart_reminder()
+
         return True
 
     def delete_model(self, provider, model_id):
@@ -266,6 +278,9 @@ class ModelManager:
 
         self._write_config(config)
         print(f"✓ 模型已删除: {model_id}")
+
+        self._restart_reminder()
+
         return True
 
     def delete_provider(self, provider):
@@ -281,6 +296,9 @@ class ModelManager:
 
         self._write_config(config)
         print(f"✓ 提供商 '{provider}' 已删除")
+
+        self._restart_reminder()
+
         return True
 
     def select_models(self, provider=None):
@@ -432,6 +450,9 @@ class ModelManager:
         self._write_config(config)
 
         print(f"已添加模型: {full_path}")
+
+        self._restart_reminder()
+
         return True
 
     def remove_agent_model(self, model_spec):
@@ -464,6 +485,9 @@ class ModelManager:
         self._write_config(config)
 
         print(f"已删除模型: {full_path}")
+
+        self._restart_reminder()
+
         return True
 
     def sync_agent_models(self):
@@ -496,6 +520,9 @@ class ModelManager:
         self._write_config(config)
 
         print(f"已同步 {len(all_models)} 个模型到 agent.models")
+
+        self._restart_reminder()
+
         return True
 
 

@@ -1,7 +1,7 @@
 ---
 name: routerModel
 description: 自定义模型管理技能，提供模型的增删查改和应用功能。直接管理 ~/.openclaw/openclaw.json 的 models 配置，支持添加提供商、模型管理以及切换默认模型。触发场景：添加新提供商/模型、列出模型、删除模型、更新提供商配置、切换默认模型。
-version: 1.2.0
+version: 1.2.1
 ---
 
 # Router Model - OpenClaw 模型管理
