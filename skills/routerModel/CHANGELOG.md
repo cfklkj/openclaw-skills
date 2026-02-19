@@ -1,5 +1,15 @@
 # 更新日志
 
+## [1.1.1] - 2026-02-19
+
+### 修复
+- 修复 select 命令无法生成按钮的问题
+- 修改 select_models 输出格式为标准 JSON，包含 current_model 和 buttons 字段
+- 移除不被识别的 [[[BUTTONS]]]...[[[/BUTTONS]]] 格式
+- 方便 agent 解析并使用 message 工具发送正确的 inline buttons
+
+---
+
 ## [1.1.0] - 2026-02-19
 
 ### 新增
