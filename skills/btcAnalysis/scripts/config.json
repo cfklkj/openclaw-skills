@@ -1,0 +1,19 @@
+{
+  "binance": {
+    "base_url": "https://api.binance.com",
+    "futures_url": "https://fapi.binance.com"
+  },
+  "defillama": {
+    "base_url": "https://api.llama.fi"
+  },
+  "coingecko": {
+    "base_url": "https://api.coingecko.com/api/v3"
+  },
+  "alternative": {
+    "base_url": "https://api.alternative.me"
+  },
+  "cache": {
+    "enabled": true,
+    "ttl": 300
+  }
+}
