@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-模型应用脚本
-将配置的模型应用到当前会话
+模型应用脚本 - 直接管理 ~/.openclaw/openclaw.json
+将模型应用到当前会话
 """
 
 import json
@@ -10,15 +10,8 @@ import argparse
 import sys
 from pathlib import Path
 
-# 配置文件路径
-CONFIG_DIR = Path(__file__).parent
-CONFIG_FILE = CONFIG_DIR / "model_config.json"
-
-# 设置标准输出编码为 UTF-8
-if sys.platform == 'win32':
-    import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+# OpenClaw 配置文件路径
+CONFIG_FILE = Path.home() / ".openclaw" / "openclaw.json"
 
 
 class ModelApplier:
@@ -26,157 +19,208 @@ class ModelApplier:
 
     def __init__(self):
         self.config_file = CONFIG_FILE
+        self._ensure_config()
+
+    def _ensure_config(self):
+        """确保配置文件存在"""
+        if not self.config_file.exists():
+            print(f"✗ 配置文件不存在: {self.config_file}")
+            print("请先安装并配置 OpenClaw")
+            sys.exit(1)
 
     def _read_config(self):
         """读取配置"""
         try:
             with open(self.config_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except FileNotFoundError:
-            print(f"✗ 配置文件不存在: {self.config_file}")
-            print("请先使用 model_manager.py 添加模型")
-            return None
+        except json.JSONDecodeError:
+            print(f"✗ 配置文件格式错误: {self.config_file}")
+            sys.exit(1)
 
-    def _find_model(self, model_id=None, model_name=None):
-        """查找模型"""
+    def _write_config(self, config):
+        """写入配置"""
+        with open(self.config_file, 'w', encoding='utf-8') as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+
+    def _ensure_agents_structure(self, config):
+        """确保 agents 结构存在"""
+        if "agents" not in config:
+            config["agents"] = {}
+        if "defaults" not in config["agents"]:
+            config["agents"]["defaults"] = {}
+        if "model" not in config["agents"]["defaults"]:
+            config["agents"]["defaults"]["model"] = {}
+        return config
+
+    def get_current_model(self):
+        """获取当前默认模型"""
         config = self._read_config()
-        if not config:
+
+        try:
+            primary = config["agents"]["defaults"]["model"]["primary"]
+            print(f"当前默认模型: {primary}")
+            return primary
+        except KeyError:
+            print("未设置默认模型")
             return None
 
-        # 通过ID查找
-        if model_id:
-            for model in config["models"]:
-                if model["id"] == model_id:
-                    return model
-            print(f"✗ 未找到模型ID: {model_id}")
-            return None
-
-        # 通过名称查找（模糊匹配）
-        if model_name:
-            matches = []
-            for model in config["models"]:
-                if model_name.lower() in model["model_name"].lower():
-                    matches.append(model)
-
-            if len(matches) == 0:
-                print(f"✗ 未找到匹配 '{model_name}' 的模型")
-                return None
-            elif len(matches) == 1:
-                return matches[0]
-            else:
-                print(f"✗ 找到多个匹配的模型：")
-                for m in matches:
-                    print(f"  - {m['id']}: {m['model_name']}")
-                print("请使用 --id 参数指定精确的模型ID")
-                return None
-
-        return None
-
-    def list_models(self):
+    def list_available_models(self):
         """列出所有可用模型"""
         config = self._read_config()
-        if not config:
-            return
 
-        if not config["models"]:
+        providers = config.get("models", {}).get("providers", {})
+        if not providers:
             print("暂无已配置的模型")
             return
 
-        print(f"\n{'ID':<15} {'提供商':<12} {'模型名称':<40}")
-        print("-" * 67)
+        print(f"\n{'提供商':<12} {'模型ID':<50}")
+        print("-" * 62)
 
-        for model in config["models"]:
-            print(f"{model['id']:<15} {model['provider']:<12} {model['model_name']:<40}")
+        for provider_name, provider_config in providers.items():
+            models = provider_config.get("models", [])
+            for model in models:
+                model_id = model.get("id", "N/A")
+                print(f"{provider_name:<12} {model_id:<50}")
 
-    def apply(self, model_id=None, model_name=None, dry_run=False):
-        """应用模型到会话"""
+        total_models = sum(len(p.get("models", [])) for p in providers.values())
+        print(f"\n总计: {total_models} 个模型，{len(providers)} 个提供商")
 
-        # 如果没有指定模型，只列出可用模型
-        if not model_id and not model_name:
-            print("可用模型：")
-            self.list_models()
-            return
+    def _find_model(self, model_spec):
+        """
+        查找模型（支持多种格式）：
+        - {model_id} 如 "z-ai/glm4.7"
+        - {provider}/{model_id} 如 "nvidia/z-ai/glm4.7"
+        """
+        config = self._read_config()
 
+        providers = config.get("models", {}).get("providers", {})
+        if not providers:
+            print("✗ 暂无已配置的模型")
+            return None, None
+
+        # 尝试直接匹配 {provider}/{model_id} 格式
+        if "/" in model_spec:
+            parts = model_spec.split("/", 1)
+            if len(parts) == 2:
+                provider, model_id = parts
+                # 检查指定提供商
+                for prov_name, prov_config in providers.items():
+                    if prov_name.lower() == provider.lower():
+                        for model in prov_config.get("models", []):
+                            if model.get("id") == model_id:
+                                return prov_name, model
+
+        # 尝试模糊匹配模型ID
+        for provider_name, provider_config in providers.items():
+            for model in provider_config.get("models", []):
+                if model_spec.lower() in model.get("id", "").lower():
+                    return provider_name, model
+
+        return None, None
+
+    def apply_model(self, model_spec, dry_run=False):
+        """应用模型为默认模型"""
         # 查找模型
-        model = self._find_model(model_id, model_name)
+        provider_name, model = self._find_model(model_spec)
+
         if not model:
-            return
+            print(f"✗ 未找到匹配 '{model_spec}' 的模型")
+            print("\n可用模型：")
+            self.list_available_models()
+            return False
+
+        model_id = model.get("id")
 
         # 显示将要应用的模型信息
         print(f"\n将要应用的模型：")
-        print(f"  提供商: {model['provider']}")
-        print(f"  模型名称: {model['model_name']}")
-        print(f"  API密钥: {model['api_key'][:8]}...")
-        if "base_url" in model:
-            print(f"  Base URL: {model['base_url']}")
+        print(f"  提供商: {provider_name}")
+        print(f"  模型ID: {model_id}")
+        print(f"  模型名称: {model.get('name', 'N/A')}")
+
+        # 获取当前模型
+        config = self._read_config()
+        try:
+            current_model = config["agents"]["defaults"]["model"]["primary"]
+            if current_model == f"{provider_name}/{model_id}":
+                print(f"\nℹ  这已经是当前默认模型")
+                return True
+        except KeyError:
+            pass
 
         if dry_run:
             print("\n[DRY RUN] 不会实际应用模型")
-            return
+            print(f"将设置默认模型为: {provider_name}/{model_id}")
+            return True
 
-        # 生成配置补丁
-        # 注意：这里需要根据 OpenClaw 的实际 API 结构来调整
-        # 假设可以通过 environment 变量设置 API key 和 base url
-        config_patch = {
-            "environment": {
-                "OPENAI_API_KEY": model["api_key"]
-            },
-            "model": model["model_name"]
-        }
+        # 确保结构存在
+        config = self._ensure_agents_structure(config)
 
-        # 如果有自定义base_url，添加到环境变量
-        if "base_url" in model:
-            config_patch["environment"]["OPENAI_BASE_URL"] = model["base_url"]
+        # 设置默认模型
+        config["agents"]["defaults"]["model"]["primary"] = f"{provider_name}/{model_id}"
 
-        # 输出配置用于说明如何应用
-        print("\n配置补丁（需要通过 OpenClaw API 应用）：")
-        print(json.dumps(config_patch, indent=2, ensure_ascii=False))
+        # 写入配置
+        self._write_config(config)
 
-        print("\n提示：当前脚本生成配置，需要通过 OpenClaw Gateway API 实际应用")
-        print("可以使用以下命令：")
-        print(f"  openclaw gateway config.patch '{json.dumps(config_patch)}'")
+        print(f"\n✓ 已设置默认模型: {provider_name}/{model_id}")
+        print("\n提示：修改已生效，但正在运行的会话可能需要重启才能使用新模型")
+        print("重启命令: openclaw gateway restart")
 
-        # 尝试通过 CLI 应用配置
+        return True
+
+    def list_session_models(self):
+        """列出当前会话可用的模型"""
+        config = self._read_config()
+
+        # 默认模型
         try:
-            import subprocess
-            result = subprocess.run(
-                ["openclaw", "gateway", "config.patch", json.dumps(config_patch)],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
+            primary = config["agents"]["defaults"]["model"]["primary"]
+            print(f"\n默认模型: {primary}")
+        except KeyError:
+            print("\n默认模型: 未设置")
 
-            if result.returncode == 0:
-                print("\n✓ 模型已成功应用到会话")
-            else:
-                print(f"\n✗ 应用失败: {result.stderr}")
-                sys.exit(1)
-
-        except FileNotFoundError:
-            print("\n提示：未找到 openclaw 命令，请手动使用以下命令应用配置：")
-            print(f"  openclaw gateway config.patch '{json.dumps(config_patch)}'")
-        except subprocess.TimeoutExpired:
-            print("\n✗ 操作超时")
-            sys.exit(1)
-        except Exception as e:
-            print(f"\n✗ 发生错误: {e}")
-            sys.exit(1)
+        # agent列表模型
+        try:
+            models = config["agents"]["defaults"]["models"]
+            if models:
+                print(f"\n可用模型列表: {len(models)} 个")
+                for model_id in models.keys():
+                    print(f"  - {model_id}")
+        except KeyError:
+            print("\n可用模型列表: 未配置")
 
 
 def main():
     parser = argparse.ArgumentParser(description="将模型应用到当前会话")
-    parser.add_argument("--id", dest="model_id", help="模型ID")
-    parser.add_argument("--name", dest="model_name", help="模型名称（模糊匹配）")
-    parser.add_argument("--dry-run", action="store_true", help="只显示不实际应用")
-    parser.add_argument("--list", action="store_true", help="列出所有可用模型")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # 应用模型
+    apply_parser = subparsers.add_parser("apply", help="应用模型为默认")
+    apply_parser.add_argument("model_spec", help="模型ID或{provider}/{model_id}")
+    apply_parser.add_argument("--dry-run", action="store_true", help="只显示不实际应用")
+
+    # 列出可用模型
+    list_parser = subparsers.add_parser("list", help="列出所有可用模型")
+
+    # 获取当前模型
+    current_parser = subparsers.add_parser("current", help="获取当前默认模型")
+
+    # 列出会话模型
+    session_parser = subparsers.add_parser("session", help="列出当前会话配置")
 
     args = parser.parse_args()
     applier = ModelApplier()
 
-    if args.list:
-        applier.list_models()
-    else:
-        applier.apply(args.model_id, args.model_name, args.dry_run)
+    if args.command == "apply":
+        applier.apply_model(args.model_spec, args.dry_run)
+
+    elif args.command == "list":
+        applier.list_available_models()
+
+    elif args.command == "current":
+        applier.get_current_model()
+
+    elif args.command == "session":
+        applier.list_session_models()
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-自定义模型管理脚本
+自定义模型管理脚本 - 直接管理 ~/.openclaw/openclaw.json
 提供模型的增删查改功能
 """
 
@@ -10,17 +10,9 @@ import argparse
 import sys
 from datetime import datetime
 from pathlib import Path
-from uuid import uuid4
 
-# 配置文件路径
-CONFIG_DIR = Path(__file__).parent
-CONFIG_FILE = CONFIG_DIR / "model_config.json"
-
-# 设置标准输出编码为 UTF-8
-if sys.platform == 'win32':
-    import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+# OpenClaw 配置文件路径
+CONFIG_FILE = Path.home() / ".openclaw" / "openclaw.json"
 
 
 class ModelManager:
@@ -33,142 +25,234 @@ class ModelManager:
     def _ensure_config(self):
         """确保配置文件存在"""
         if not self.config_file.exists():
-            self._write_config({"models": []})
+            print(f"✗ 配置文件不存在: {self.config_file}")
+            print("请先安装并配置 OpenClaw")
+            sys.exit(1)
 
     def _read_config(self):
         """读取配置"""
         try:
             with open(self.config_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
-        except (json.JSONDecodeError, FileNotFoundError):
-            return {"models": []}
+        except json.JSONDecodeError:
+            print(f"✗ 配置文件格式错误: {self.config_file}")
+            sys.exit(1)
 
     def _write_config(self, config):
         """写入配置"""
         with open(self.config_file, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
 
-    def _generate_id(self, provider):
-        """生成模型ID"""
-        # 查找该provider现有的模型数量
-        config = self._read_config()
-        count = sum(1 for m in config["models"] if m["provider"] == provider)
-        return f"{provider.lower()}-{count + 1:03d}"
+    def _ensure_models_structure(self, config):
+        """确保 models 结构存在"""
+        if "models" not in config:
+            config["models"] = {}
+        if "providers" not in config["models"]:
+            config["models"]["providers"] = {}
+        return config
 
-    def add(self, provider, api_key, model_name, base_url=None):
-        """添加新模型"""
-        config = self._read_config()
-
-        model = {
-            "id": self._generate_id(provider),
-            "provider": provider,
-            "api_key": api_key,
-            "model_name": model_name,
-            "created_at": datetime.utcnow().isoformat() + "Z",
-            "last_used": None
+    def _init_provider(self, config, provider, api_key, base_url=None, api_type="openai-completions"):
+        """初始化提供商配置"""
+        provider_config = {
+            "apiKey": api_key,
+            "api": api_type
         }
-
         if base_url:
-            model["base_url"] = base_url
+            provider_config["baseUrl"] = base_url
+        return provider_config
 
-        config["models"].append(model)
-        self._write_config(config)
+    def _create_model_entry(self, model_id, model_name, **kwargs):
+        """创建模型条目（默认值）"""
+        model_entry = {
+            "id": model_id,
+            "name": model_name,
+            "reasoning": kwargs.get("reasoning", False),
+            "input": kwargs.get("input", ["text"]),
+            "cost": kwargs.get("cost", {
+                "input": 0,
+                "output": 0,
+                "cacheRead": 0,
+                "cacheWrite": 0
+            }),
+            "contextWindow": kwargs.get("contextWindow", 128000),
+            "maxTokens": kwargs.get("maxTokens", 16384)
+        }
+        return model_entry
 
-        print(f"✓ 模型添加成功")
-        print(f"  ID: {model['id']}")
-        print(f"  提供商: {model['provider']}")
-        print(f"  模型名称: {model['model_name']}")
-        if base_url:
-            print(f"  Base URL: {model['base_url']}")
+    def list_providers(self):
+        """列出所有提供商"""
+        config = self._read_config()
 
-        return model
+        if not config.get("models", {}).get("providers"):
+            print("暂无已配置的提供商")
+            return
 
-    def list(self, provider=None):
+        providers = config["models"]["providers"]
+
+        print(f"\n{'提供商':<15} {'Base URL':<50} {'API密钥前缀':<20}")
+        print("-" * 85)
+
+        for provider_name, provider_config in providers.items():
+            base_url = provider_config.get("baseUrl", "N/A")
+            api_key = provider_config.get("apiKey", "N/A")
+            api_key_prefix = api_key[:8] + "..." if len(api_key) > 8 else api_key
+            print(f"{provider_name:<15} {base_url:<50} {api_key_prefix:<20}")
+
+        print(f"\n总计: {len(providers)} 个提供商")
+
+    def list_models(self, provider=None):
         """列出模型"""
         config = self._read_config()
 
-        if not config["models"]:
-            print("暂无已配置的模型")
+        providers = config.get("models", {}).get("providers", {})
+        if not providers:
+            print("暂无已配置的提供商")
             return
 
-        # 过滤
-        models = config["models"]
+        # 如果指定了提供商，只列出该提供商的模型
         if provider:
-            models = [m for m in models if m["provider"].lower() == provider.lower()]
-            if not models:
-                print(f"未找到提供商 '{provider}' 的模型")
+            if provider.lower() not in [p.lower() for p in providers.keys()]:
+                print(f"✗ 未找到提供商: {provider}")
                 return
 
-        # 打印表格
-        print(f"\n{'ID':<15} {'提供商':<12} {'模型名称':<40} {'创建时间':<20}")
-        print("-" * 87)
+            actual_provider = next(p for p in providers.keys() if p.lower() == provider.lower())
+            provider_config = providers[actual_provider]
+            models = provider_config.get("models", [])
 
-        for model in models:
-            created = model["created_at"][:19].replace('T', ' ')
-            print(f"{model['id']:<15} {model['provider']:<12} {model['model_name']:<40} {created:<20}")
-            if "base_url" in model:
-                print(f"{'':15} {'Base URL':<12} {model['base_url']}")
+            if not models:
+                print(f"提供商 {actual_provider} 暂无模型")
+                return
 
-        print(f"\n总计: {len(models)} 个模型")
+            print(f"\n提供商: {actual_provider}")
+            print(f"{'模型ID':<60} {'名称':<40} {'上下文窗口':<12}")
+            print("-" * 112)
 
-    def search(self, provider):
-        """按提供商搜索模型"""
-        self.list(provider=provider)
+            for model in models:
+                model_id = model.get("id", "N/A")
+                name = model.get("name", "N/A")
+                context = model.get("contextWindow", "N/A")
+                print(f"{model_id:<60} {name:<40} {context:<12}")
 
-    def get_model(self, model_id=None, model_name=None):
-        """获取模型（通过ID或名称）"""
+            print(f"\n总计: {len(models)} 个模型")
+        else:
+            # 列出所有提供商的所有模型
+            print(f"\n{'提供商':<12} {'模型ID':<50} {'名称':<40}")
+            print("-" * 102)
+
+            total_models = 0
+            for provider_name, provider_config in providers.items():
+                models = provider_config.get("models", [])
+                for model in models:
+                    model_id = model.get("id", "N/A")
+                    name = model.get("name", "N/A")
+                    print(f"{provider_name:<12} {model_id:<50} {name:<40}")
+                    total_models += 1
+
+            print(f"\n总计: {total_models} 个模型，{len(providers)} 个提供商")
+
+    def add_provider(self, provider, api_key, base_url=None, api_type="openai-completions"):
+        """添加提供商"""
+        config = self._read_config()
+        config = self.__ensure_models_structure(config)
+
+        providers = config["models"]["providers"]
+
+        # 检查提供商是否已存在
+        if provider in providers:
+            print(f"✗ 提供商 '{provider}' 已存在")
+            return False
+
+        # 创建提供商配置
+        providers[provider] = self._init_provider(provider, api_key, base_url, api_type)
+
+        self._write_config(config)
+
+        print(f"✓ 提供商添加成功")
+        print(f"  名称: {provider}")
+        print(f"  API密钥: {api_key[:8]}...")
+        if base_url:
+            print(f"  Base URL: {base_url}")
+        print(f"  API类型: {api_type}")
+
+        return True
+
+    def add_model(self, provider, model_id, **kwargs):
+        """添加模型"""
+        config = self._read_config()
+        config = self.__ensure_models_structure(config)
+
+        providers = config["models"]["providers"]
+
+        # 检查提供商是否存在
+        if provider not in providers:
+            print(f"✗ 提供商 '{provider}' 不存在")
+            print(f"请先使用 add-provider 添加该提供商")
+            return False
+
+        # 创建模型条目
+        model_entry = self._create_model_entry(model_id, model_id, **kwargs)
+
+        # 添加模型
+        providers[provider]["models"] = providers[provider].get("models", [])
+        providers[provider]["models"].append(model_entry)
+
+        self._write_config(config)
+
+        print(f"✓ 模型添加成功")
+        print(f"  提供商: {provider}")
+        print(f"  模型ID: {model_id}")
+
+        return True
+
+    def add_model_quick(self, provider, api_key, model_name, base_url=None):
+        """快速添加：提供商 + 模型"""
+        # 先添加提供商（如果不存在）
+        provider_exists = provider in self._read_config().get("models", {}).get("providers", {})
+
+        if not provider_exists:
+            self.add_provider(provider, api_key, base_url)
+
+        # 添加模型
+        return self.add_model(provider, model_name)
+
+    def update_provider(self, provider, api_key=None, base_url=None):
+        """更新提供商配置"""
         config = self._read_config()
 
-        # 通过ID查找
-        if model_id:
-            for model in config["models"]:
-                if model["id"] == model_id:
-                    return model
+        providers = config.get("models", {}).get("providers", {})
+        if provider not in providers:
+            print(f"✗ 提供商 '{provider}' 不存在")
+            return False
 
-        # 通过名称查找（模糊匹配）
-        if model_name:
-            for model in config["models"]:
-                if model_name.lower() in model["model_name"].lower():
-                    return model
+        provider_config = providers[provider]
 
-        return None
+        if api_key:
+            provider_config["apiKey"] = api_key
+            print(f"✓ API密钥已更新")
+        if base_url:
+            provider_config["baseUrl"] = base_url
+            print(f"✓ Base URL已更新: {base_url}")
 
-    def update(self, model_id, api_key=None, model_name=None, base_url=None):
-        """更新模型"""
-        config = self._read_config()
+        self._write_config(config)
+        print(f"✓ 提供商 '{provider}' 更新成功")
+        return True
 
-        for model in config["models"]:
-            if model["id"] == model_id:
-                if api_key:
-                    model["api_key"] = api_key
-                if model_name:
-                    model["model_name"] = model_name
-                if base_url:
-                    model["base_url"] = base_url
-
-                self._write_config(config)
-
-                print(f"✓ 模型更新成功: {model_id}")
-                if api_key:
-                    print(f"  API密钥已更新")
-                if model_name:
-                    print(f"  模型名称: {model['model_name']}")
-                if base_url:
-                    print(f"  Base URL: {model['base_url']}")
-
-                return model
-
-        print(f"✗ 未找到模型ID: {model_id}")
-        return None
-
-    def delete(self, model_id):
+    def delete_model(self, provider, model_id):
         """删除模型"""
         config = self._read_config()
 
-        original_count = len(config["models"])
-        config["models"] = [m for m in config["models"] if m["id"] != model_id]
+        providers = config.get("models", {}).get("providers", {})
+        if provider not in providers:
+            print(f"✗ 提供商 '{provider}' 不存在")
+            return False
 
-        if len(config["models"]) == original_count:
+        provider_config = providers[provider]
+        models = provider_config.get("models", [])
+
+        original_count = len(models)
+        provider_config["models"] = [m for m in models if m.get("id") != model_id]
+
+        if len(provider_config["models"]) == original_count:
             print(f"✗ 未找到模型ID: {model_id}")
             return False
 
@@ -176,77 +260,102 @@ class ModelManager:
         print(f"✓ 模型已删除: {model_id}")
         return True
 
-    def mark_used(self, model_id):
-        """标记模型已使用"""
+    def delete_provider(self, provider):
+        """删除提供商及其所有模型"""
         config = self._read_config()
 
-        for model in config["models"]:
-            if model["id"] == model_id:
-                model["last_used"] = datetime.utcnow().isoformat() + "Z"
-                self._write_config(config)
-                break
+        providers = config.get("models", {}).get("providers", {})
+        if provider not in providers:
+            print(f"✗ 提供商 '{provider}' 不存在")
+            return False
+
+        del providers[provider]
+
+        self._write_config(config)
+        print(f"✓ 提供商 '{provider}' 已删除")
+        return True
 
 
 def main():
-    parser = argparse.ArgumentParser(description="自定义模型管理工具")
+    parser = argparse.ArgumentParser(description="OpenClaw 模型管理工具")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # 添加模型
-    add_parser = subparsers.add_parser("add", help="添加新模型")
-    add_parser.add_argument("--provider", required=True, help="提供商名称（如 nvidia, openai）")
-    add_parser.add_argument("--api-key", required=True, help="API密钥")
-    add_parser.add_argument("--model-name", required=True, help="模型名称")
-    add_parser.add_argument("--base-url", help="自定义API端点（如 https://api.example.com/v1）")
+    # 列出提供商
+    list_providers_parser = subparsers.add_parser("list-providers", help="列出所有提供商")
 
     # 列出模型
-    list_parser = subparsers.add_parser("list", help="列出所有模型")
-    list_parser.add_argument("--provider", help="按提供商过滤")
+    list_models_parser = subparsers.add_parser("list-models", help="列出所有模型")
+    list_models_parser.add_argument("--provider", help="按提供商过滤")
 
-    # 搜索模型
-    search_parser = subparsers.add_parser("search", help="按提供商搜索模型")
-    search_parser.add_argument("--provider", required=True, help="提供商名称")
+    # 添加提供商
+    add_provider_parser = subparsers.add_parser("add-provider", help="添加提供商")
+    add_provider_parser.add_argument("--name", required=True, help="提供商名称")
+    add_provider_parser.add_argument("--api-key", required=True, help="API密钥")
+    add_provider_parser.add_argument("--base-url", help="Base URL")
+    add_provider_parser.add_argument("--api-type", default="openai-completions", help="API类型")
 
-    # 更新模型
-    update_parser = subparsers.add_parser("update", help="更新模型配置")
-    update_parser.add_argument("--id", required=True, dest="model_id", help="模型ID")
-    update_parser.add_argument("--api-key", help="新的API密钥")
-    update_parser.add_argument("--model-name", help="新的模型名称")
-    update_parser.add_argument("--base-url", help="新的API端点")
+    # 添加模型
+    add_model_parser = subparsers.add_parser("add-model", help="添加模型")
+    add_model_parser.add_argument("--provider", required=True, help="提供商名称")
+    add_model_parser.add_argument("--id", required=True, help="模型ID")
+    add_model_parser.add_argument("--name", help="模型名称（默认与ID相同）")
+    add_model_parser.add_argument("--context-window", type=int, default=128000, help="上下文窗口大小")
+    add_model_parser.add_argument("--max-tokens", type=int, default=16384, help="最大token数")
+
+    # 快速添加（提供商 + 模型）
+    quick_add_parser = subparsers.add_parser("add", help="快速添加提供商和模型")
+    quick_add_parser.add_argument("--provider", required=True, help="提供商名称")
+    quick_add_parser.add_argument("--api-key", required=True, help="API密钥")
+    quick_add_parser.add_argument("--model-name", required=True, help="模型名称")
+    quick_add_parser.add_argument("--base-url", help="Base URL")
+
+    # 更新提供商
+    update_provider_parser = subparsers.add_parser("update-provider", help="更新提供商配置")
+    update_provider_parser.add_argument("--name", required=True, help="提供商名称")
+    update_provider_parser.add_argument("--api-key", help="新的API密钥")
+    update_provider_parser.add_argument("--base-url", help="新的Base URL")
 
     # 删除模型
-    delete_parser = subparsers.add_parser("delete", help="删除模型")
-    delete_parser.add_argument("--id", required=True, dest="model_id", help="模型ID")
+    delete_model_parser = subparsers.add_parser("delete-model", help="删除模型")
+    delete_model_parser.add_argument("--provider", required=True, help="提供商名称")
+    delete_model_parser.add_argument("--id", required=True, dest="model_id", help="模型ID")
 
-    # 获取模型
-    get_parser = subparsers.add_parser("get", help="获取模型信息")
-    get_parser.add_argument("--id", dest="model_id", help="模型ID")
-    get_parser.add_argument("--name", dest="model_name", help="模型名称（模糊匹配）")
+    # 删除提供商
+    delete_provider_parser = subparsers.add_parser("delete-provider", help="删除提供商")
+    delete_provider_parser.add_argument("--name", required=True, help="提供商名称")
 
     args = parser.parse_args()
     manager = ModelManager()
 
-    if args.command == "add":
-        manager.add(args.provider, args.api_key, args.model_name, args.base_url)
+    if args.command == "list-providers":
+        manager.list_providers()
 
-    elif args.command == "list":
-        manager.list(provider=args.provider)
+    elif args.command == "list-models":
+        manager.list_models(provider=args.provider)
 
-    elif args.command == "search":
-        manager.search(args.provider)
+    elif args.command == "add-provider":
+        manager.add_provider(args.name, args.api_key, args.base_url, args.api_type)
 
-    elif args.command == "update":
-        manager.update(args.model_id, args.api_key, args.model_name, args.base_url)
+    elif args.command == "add-model":
+        manager.add_model(
+            args.provider,
+            args.id,
+            name=args.name or args.id,
+            contextWindow=args.context_window,
+            maxTokens=args.max_tokens
+        )
 
-    elif args.command == "delete":
-        manager.delete(args.model_id)
+    elif args.command == "add":
+        manager.add_model_quick(args.provider, args.api_key, args.model_name, args.base_url)
 
-    elif args.command == "get":
-        model = manager.get_model(args.model_id, args.model_name)
-        if model:
-            print(json.dumps(model, indent=2, ensure_ascii=False))
-        else:
-            print("未找到匹配的模型")
-            sys.exit(1)
+    elif args.command == "update-provider":
+        manager.update_provider(args.name, args.api_key, args.base_url)
+
+    elif args.command == "delete-model":
+        manager.delete_model(args.provider, args.model_id)
+
+    elif args.command == "delete-provider":
+        manager.delete_provider(args.name)
 
 
 if __name__ == "__main__":
