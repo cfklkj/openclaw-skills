@@ -51,7 +51,15 @@ class ModelManager:
             config["models"]["providers"] = {}
         return config
 
-    def _init_provider(self, config, provider, api_key, base_url=None, api_type="openai-completions"):
+    def _ensure_models_structure(self, config):
+        """确保 models 结构存在"""
+        if "models" not in config:
+            config["models"] = {}
+        if "providers" not in config["models"]:
+            config["models"]["providers"] = {}
+        return config
+
+    def _init_provider(self, provider, api_key, base_url=None, api_type="openai-completions"):
         """初始化提供商配置"""
         provider_config = {
             "apiKey": api_key,
@@ -153,7 +161,7 @@ class ModelManager:
     def add_provider(self, provider, api_key, base_url=None, api_type="openai-completions"):
         """添加提供商"""
         config = self._read_config()
-        config = self.__ensure_models_structure(config)
+        config = self._ensure_models_structure(config)
 
         providers = config["models"]["providers"]
 
@@ -179,7 +187,7 @@ class ModelManager:
     def add_model(self, provider, model_id, **kwargs):
         """添加模型"""
         config = self._read_config()
-        config = self.__ensure_models_structure(config)
+        config = self._ensure_models_structure(config)
 
         providers = config["models"]["providers"]
 

@@ -41,6 +41,15 @@ OpenClaw 技能集合，用于扩展 OpenClaw AI 代理的能力。
 ## 使用技能
 
 重启后，OpenClaw 会自动加载新技能。你可以通过以下方式使用：
+[
+   用户: 帮我添加一个新的模型，提供商是 test，API密钥是 test-key，模型名称是 test/model,  baseUrl是 https://xxx/v1
+
+   用户: 列出我所有的模型
+
+   用户: 把默认模型切换到 nvidia/nemotron-3-nano-30b-a3b
+
+   用户: 查看当前使用的是什么模型 
+]
 
 - 在对话中描述你的需求，AI 会自动调用相应的技能
 - 查看技能的 README_USAGE.md 文件了解详细用法
