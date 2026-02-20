@@ -142,6 +142,8 @@ class SSHManager:
         """
         远程解压文件
 
+        修复：直接在 extract_to 目录下解压，避免双重嵌套
+
         Args:
             remote_path: 远程压缩包路径
             extract_to: 解压目标目录
@@ -151,10 +153,12 @@ class SSHManager:
         """
         try:
             # 根据文件扩展名选择解压命令
+            # 直接在 extract_to 目录下解压，压缩包内的目录会保留
             if remote_path.endswith('.zip'):
-                cmd = f"unzip -o {remote_path} -d {extract_to} && rm {remote_path}"
+                # 使用 cd 确保解压到正确位置，避免双重嵌套
+                cmd = f"cd {extract_to} && unzip -o {remote_path} && rm {remote_path}"
             elif remote_path.endswith('.tar.gz') or remote_path.endswith('.tgz'):
-                cmd = f"tar -xzf {remote_path} -C {extract_to} && rm {remote_path}"
+                cmd = f"cd {extract_to} && tar -xzf {remote_path} && rm {remote_path}"
             else:
                 raise ValueError(f"Unsupported archive format: {remote_path}")
 

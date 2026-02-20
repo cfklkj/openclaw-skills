@@ -1,5 +1,33 @@
 # 更新日志
 
+## [1.0.1] - 2026-02-20
+
+### Bug 修复
+- 🐛 修复解压后目录双重嵌套问题
+  - 修复前：上传 ade/ 后生成 `/root/tmp/ade/ade/...`（双重嵌套）
+  - 修复后：正确生成 `/root/tmp/ade/...`（单层结构）
+  - 修改位置：`src/ssh_manager.py` 的 `extract_archive()` 方法
+  - 修复方式：使用 `cd` 切换目录后直接解压，避免额外目录层级
+
+### 文档更新
+- 📝 添加 Bug 修复报告（BUG_FIX_REPORT.md）
+- 📝 完善 SKILL.md 文档（OpenClaw 集成说明 + 自然语言示例）
+- 📝 添加完整性评估报告（COMPLETENESS_ASSESSMENT.md）
+- 📝 添加优化报告（SKILL_OPTIMIZATION_REPORT.md）
+
+### 技术细节
+- 修复 unzip 解压逻辑：`cd {extract_to} && unzip -o {remote_path}`
+- 修复 tar 解压逻辑：`cd {extract_to} && tar -xzf {remote_path}`
+- 添加目录验证脚本（verify_remote.py）
+- 添加远程清理脚本（cleanup_remote.py）
+
+### 测试验证
+- ✅ 在实际服务器上验证修复效果
+- ✅ 确认目录结构正确，无双重嵌套
+- ✅ 文件上传和解压功能正常
+
+---
+
 ## [1.0.0] - 2026-02-20
 
 ### 新增
