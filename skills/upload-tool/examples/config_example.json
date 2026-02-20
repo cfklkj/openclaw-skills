@@ -1,0 +1,21 @@
+{
+    "compression_format": "tar.gz",
+    "cleanup_temp": true,
+    "verify_upload": true,
+    "retry_count": 3,
+    "retry_delay": 5,
+    "exclude_patterns": [
+        "__pycache__",
+        ".git",
+        "*.pyc",
+        ".DS_Store",
+        "node_modules",
+        "*.log",
+        "temp",
+        "*.tmp",
+        ".vscode",
+        ".idea"
+    ],
+    "preserve_permissions": true,
+    "preserve_timestamps": true
+}
