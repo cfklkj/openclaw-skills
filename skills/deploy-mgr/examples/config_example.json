@@ -1,0 +1,14 @@
+{
+  "name": "example-deployment",
+  "host": "example.com",
+  "port": 22,
+  "username": "deploy",
+  "auth_type": "key",
+  "auth_data": "~/.ssh/id_rsa",
+  "deploy_path": "/var/www/example",
+  "start_command": "npm start",
+  "stop_command": "npm stop",
+  "status_command": "ps aux | grep node | grep -v grep",
+  "log_path": "/var/log/example/app.log",
+  "description": "示例部署配置"
+}
