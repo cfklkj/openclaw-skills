@@ -1,0 +1,50 @@
+{
+  "name": "openclaw-skill-back-mgr",
+  "version": "1.0.0",
+  "description": "远程项目备份与还原工具 - OpenClaw 技能",
+  "main": "back-mgr.py",
+  "bin": {
+    "back-mgr": "back-mgr.py"
+  },
+  "scripts": {
+    "test": "python back-mgr.py --help"
+  },
+  "keywords": [
+    "openclaw",
+    "skill",
+    "backup",
+    "restore",
+    "ssh",
+    "rsync",
+    "devops",
+    "deployment"
+  ],
+  "author": "fly",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fly/openclaw-skill-back-mgr.git"
+  },
+  "files": [
+    "back-mgr.py",
+    "SKILL.md",
+    "README.md",
+    "requirements.txt"
+  ],
+  "openclaw": {
+    "type": "skill",
+    "name": "back-mgr",
+    "description": "远程项目备份与还原管理工具",
+    "commands": [
+      "back-mgr add",
+      "back-mgr list",
+      "back-mgr delete",
+      "back-mgr backup",
+      "back-mgr restore",
+      "back-mgr versions"
+    ]
+  },
+  "engines": {
+    "python": ">=3.8"
+  }
+}
