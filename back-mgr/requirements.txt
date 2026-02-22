@@ -1,0 +1,10 @@
+# back-mgr 依赖列表
+# 本工具主要使用 Python 标准库，以下为可选依赖
+
+# 如果需要增强功能，可以安装以下包：
+
+# paramiko>=2.7.0    # SSH 连接（如果将来迁移到 paramiko）
+# cryptography>=3.4  # 加密功能（如果需要加密敏感文件）
+# python-dotenv>=0.19  # 环境变量管理
+
+# 注意：当前版本使用系统 rsync/ssh 命令，无需额外依赖

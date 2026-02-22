@@ -1,0 +1,64 @@
+{
+  "projects": [
+    {
+      "name": "example-webapp",
+      "host": "192.168.1.100",
+      "user": "deploy",
+      "port": 22,
+      "remotePath": "/var/www/webapp",
+      "localPath": "~/backups/webapp",
+      "databases": [
+        {
+          "type": "mysql",
+          "name": "webapp_db",
+          "user": "root",
+          "host": "localhost",
+          "port": 3306
+        }
+      ],
+      "exclude": [
+        "node_modules/**",
+        ".git/**",
+        "*.log",
+        "tmp/**",
+        "cache/**"
+      ],
+      "encryptSensitive": true
+    },
+    {
+      "name": "api-server",
+      "host": "api.example.com",
+      "user": "root",
+      "port": 2222,
+      "remotePath": "/opt/api",
+      "localPath": "~/backups/api",
+      "databases": [
+        {
+          "type": "postgresql",
+          "name": "api_db",
+          "user": "postgres",
+          "host": "localhost",
+          "port": 5432
+        }
+      ],
+      "exclude": [
+        "__pycache__/**",
+        "*.pyc",
+        "*.log"
+      ],
+      "encryptSensitive": true
+    },
+    {
+      "name": "static-files",
+      "host": "cdn.example.com",
+      "user": "web",
+      "port": 22,
+      "remotePath": "/var/www/static",
+      "localPath": "~/backups/static",
+      "exclude": [
+        "*.tmp"
+      ],
+      "encryptSensitive": false
+    }
+  ]
+}
