@@ -4,6 +4,7 @@
 """
 
 import logging
+import shlex
 from typing import List, Dict, Optional
 from .storage import Storage
 from .ssh_client import SSHClient
@@ -239,7 +240,7 @@ class DeploymentManager:
             }
 
         # 切换到部署目录并执行启动命令
-        command = f"cd {deployment['deploy_path']} && {deployment['start_command']}"
+        command = f"cd {shlex.quote(deployment['deploy_path'])} && {deployment['start_command']}"
         exit_code, stdout, stderr = client.execute_command(command)
 
         success = exit_code == 0
@@ -285,7 +286,7 @@ class DeploymentManager:
             }
 
         # 切换到部署目录并执行停止命令
-        command = f"cd {deployment['deploy_path']} && {deployment['stop_command']}"
+        command = f"cd {shlex.quote(deployment['deploy_path'])} && {deployment['stop_command']}"
         exit_code, stdout, stderr = client.execute_command(command)
 
         success = exit_code == 0

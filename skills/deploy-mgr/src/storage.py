@@ -1,12 +1,6 @@
-"""
-数据存储模块
-管理部署信息持久化存储
-"""
+"""数据存储模块 - 管理部署信息持久化存储"""
 
-import os
-import json
 import sqlite3
-from datetime import datetime
 from typing import List, Dict, Optional
 from pathlib import Path
 
@@ -29,7 +23,6 @@ class Storage:
             self.db_dir = home_dir / ".deploy-mgr"
             self.db_dir.mkdir(parents=True, exist_ok=True)
             self.db_path = str(self.db_dir / "deployments.db")
-
         self._init_db()
 
     def _init_db(self):
@@ -86,7 +79,6 @@ class Storage:
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-
         try:
             cursor.execute("""
                 INSERT INTO deployments (
@@ -108,7 +100,6 @@ class Storage:
                 deployment.get('log_path'),
                 deployment.get('description')
             ))
-
             deployment_id = cursor.lastrowid
             conn.commit()
             return deployment_id
@@ -129,19 +120,16 @@ class Storage:
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-
         try:
             # 尝试按名称查询
             cursor.execute("SELECT * FROM deployments WHERE name = ?", (identifier,))
             row = cursor.fetchone()
-
             if row:
                 return self._row_to_dict(row, cursor.description)
 
             # 尝试按ID查询
             cursor.execute("SELECT * FROM deployments WHERE id = ?", (identifier,))
             row = cursor.fetchone()
-
             if row:
                 return self._row_to_dict(row, cursor.description)
 
@@ -158,29 +146,25 @@ class Storage:
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-
         cursor.execute("SELECT * FROM deployments ORDER BY name")
         rows = cursor.fetchall()
-
         deployments = [self._row_to_dict(row, cursor.description) for row in rows]
-
         conn.close()
         return deployments
 
-    def update_deployment(self, identifier: str, deployment: Dict) -> bool:
+    def update_deployment(self, identifier: str, updates: Dict) -> bool:
         """
         更新部署信息
 
         Args:
             identifier: 部署名称或ID
-            deployment: 更新的部署信息
+            updates: 更新的部署信息
 
         Returns:
             是否成功
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-
         try:
             # 先检查是否存在
             existing = self.get_deployment(identifier)
@@ -193,18 +177,16 @@ class Storage:
             # 构建更新语句
             update_fields = []
             update_values = []
-
             for field in ['host', 'port', 'username', 'auth_type', 'auth_data',
-                         'deploy_path', 'start_command', 'stop_command',
-                         'status_command', 'log_path', 'description']:
-                if field in deployment:
+                          'deploy_path', 'start_command', 'stop_command',
+                          'status_command', 'log_path', 'description']:
+                if field in updates:
                     update_fields.append(f"{field} = ?")
-                    update_values.append(deployment[field])
+                    update_values.append(updates[field])
 
             if update_fields:
                 update_fields.append("updated_at = CURRENT_TIMESTAMP")
                 update_values.append(deployment_id)
-
                 query = f"UPDATE deployments SET {', '.join(update_fields)} WHERE id = ?"
                 cursor.execute(query, update_values)
                 conn.commit()
@@ -225,7 +207,6 @@ class Storage:
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-
         try:
             existing = self.get_deployment(identifier)
             if not existing:
@@ -235,9 +216,9 @@ class Storage:
 
             # 删除相关日志
             cursor.execute("DELETE FROM operation_logs WHERE deployment_id = ?", (deployment_id,))
+
             # 删除部署
             cursor.execute("DELETE FROM deployments WHERE id = ?", (deployment_id,))
-
             conn.commit()
             return True
         finally:
@@ -255,12 +236,10 @@ class Storage:
         """
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-
         cursor.execute("""
             INSERT INTO operation_logs (deployment_id, operation, status, message)
             VALUES (?, ?, ?, ?)
         """, (deployment_id, operation, status, message))
-
         conn.commit()
         conn.close()
 

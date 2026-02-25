@@ -103,7 +103,7 @@ class TestStorage(unittest.TestCase):
 
         self.storage.add_deployment(deployment)
 
-        success = self.storage.update_deployment('test-app', description='Updated description')
+        success = self.storage.update_deployment('test-app', {'description': 'Updated description'})
         self.assertTrue(success)
 
         result = self.storage.get_deployment('test-app')
