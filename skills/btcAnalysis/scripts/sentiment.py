@@ -13,10 +13,28 @@ from api.sentiment import get_alternative_api
 
 class SentimentAnalyzer:
     """情绪数据分析器"""
-
+    
     def __init__(self):
         self.alt_api = get_alternative_api()
-
+    
+    def get_fear_greed_index(self):
+        """
+        获取恐惧与贪婪指数数据
+        
+        Returns:
+            dict: {'value': int, 'classification': str}
+        """
+        data = self.alt_api.get_fear_greed_index(limit=1)
+        if not data or 'data' not in data or not data['data']:
+            return None
+        
+        current = data['data'][0]
+        return {
+            'value': int(current.get('value', 0)),
+            'classification': current.get('value_classification', ''),
+            'timestamp': current.get('timestamp', '')
+        }
+    
     def show_fear_greed_index(self):
         """显示恐惧与贪婪指数"""
         print("\n=== 恐惧与贪婪指数 ===\n")
